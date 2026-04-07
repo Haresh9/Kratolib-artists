@@ -59,3 +59,43 @@ export async function getArtistYouTubeTracks(channelUrl: string): Promise<YouTub
     return [];
   }
 }
+
+export async function getArtistYouTubeSubscribers(channelUrl: string): Promise<string> {
+  if (!YOUTUBE_API_KEY || !channelUrl) return '0';
+
+  try {
+    let channelId = "";
+
+    // Extract channel ID or handle
+    if (channelUrl.includes('/channel/')) {
+      channelId = channelUrl.split('/channel/split/')[1].split('/')[0].split('?')[0];
+    } else if (channelUrl.includes('/@')) {
+      const handle = channelUrl.split('/@')[1].split('/')[0].split('?')[0];
+      const searchRes = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${handle}&type=channel&key=${YOUTUBE_API_KEY}`
+      );
+      const searchData = await searchRes.json();
+      channelId = searchData.items?.[0]?.id?.channelId || "";
+    }
+
+    if (!channelId) return '0';
+
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${YOUTUBE_API_KEY}`
+    );
+    const data = await res.json();
+    const stats = data.items?.[0]?.statistics;
+    
+    if (stats && stats.subscriberCount) {
+      const count = parseInt(stats.subscriberCount);
+      if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
+      if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
+      return count.toString();
+    }
+    
+    return '0';
+  } catch (error) {
+    console.error("Error fetching YouTube subscribers:", error);
+    return '0';
+  }
+}
